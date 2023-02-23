@@ -7,5 +7,6 @@ contract ErrorsInSol{
         //code
         string memory str = "given number is less then or equal to 10";
         return str;
+        //md
     }
 }
