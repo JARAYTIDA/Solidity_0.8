@@ -29,4 +29,23 @@ contract ErrorsInSol{
     function dec() external{
         num -= 1;
     }
+
+    function incOnCondition(uint x) external{
+        num += 1;
+        require(x > 10, "x <= 10");
+    }
+
+    function decOnCondition(uint x) external{
+        num -= 1;
+        require(x <= 10, "x > 10");
+    }
+
+    //custom errors
+
+    error MyError(address caller, uint i, string);
+
+    function customError(uint x) external view{
+        if(x > 10)
+            revert MyError(msg.sender, x, "value is more than 10");
+    }
 }
