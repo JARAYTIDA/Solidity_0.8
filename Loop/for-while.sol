@@ -2,7 +2,7 @@
 pragma solidity ^0.8.7;
 
 contract loop{
-    // writing sum till n with the help of for and while
+    // writing sum till n with the help of for loop and while loop
     function forLoop(uint x) external pure returns(uint){
         uint ans = 0;
         for(uint i = 1; i<=x; i++){
