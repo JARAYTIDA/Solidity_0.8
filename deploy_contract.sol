@@ -25,6 +25,8 @@ contract Proxy{
     event Deploy(address);
 
     fallback() external payable{} 
+    
+    receive() external payable{}
 
     function deploy(bytes memory _code) external payable returns(address addr){
         assembly{
