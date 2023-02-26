@@ -24,6 +24,8 @@ contract TestContract2{
 contract Proxy{
     event Deploy(address);
 
+    fallback() external payable{} 
+
     function deploy(bytes memory _code) external payable returns(address addr){
         assembly{
             //create (v,p,n)
