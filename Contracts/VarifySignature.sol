@@ -25,7 +25,7 @@ contract VarifySig{
         return ecrecover(_ethSignedMessage, v, r, s);
     }
 
-    function _split(bytes memory _sig) public pure returns(bytes32 r, bytes32 s, uint8 v){
+    function _split(bytes memory _sig) internal pure returns(bytes32 r, bytes32 s, uint8 v){
         require(_sig.length == 65, "not a valid signature");
 
         assembly{
