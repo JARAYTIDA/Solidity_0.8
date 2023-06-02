@@ -35,12 +35,15 @@ contract RentBike{
     forRent[] public personalBikes;
     mapping (address => forRent) public personalRents;
     mapping (address => forRent) public lessors;
+    mapping (address => address) public whichBikeIsRented;
 
     function addRenter( address payable walletAddress, string memory name, bool canRent, bool active, uint balance, uint due, uint start, uint end) public {
+        require(msg.sender == walletAddress, "invalid user");
         renters[walletAddress] = Renter(walletAddress, name, canRent, active, balance, due, start, end);
     }
 
     function addForRent( address payable walletAddress, string memory name, bool canGiveForRent, uint amountToBeCollected) public {
+        require(msg.sender == walletAddress, "invalid user");
         personalBikes.push(forRent(walletAddress, name, canGiveForRent, amountToBeCollected));
         lessors[walletAddress] = forRent(walletAddress, name, canGiveForRent, amountToBeCollected);
     }
@@ -48,27 +51,33 @@ contract RentBike{
     // deposit a amount
     function depositAmount() payable public {
         renters[msg.sender].balance += msg.value;
+
     }
 
     // check-out bike
-    function checkOut(address payable walletAddr) public {
+    function checkIn(address payable walletAddr, address payable lessorsAddr) public {
+        require((msg.sender) == walletAddr, "invalid user");
         // Renter memory tmp = renters[walletAddr];
         require(renters[walletAddr].balance > 0 , "insufficient balance");
         require(renters[walletAddr].due == 0, "dues are pending");
         require(renters[walletAddr].active == false, "already on a bike");
+        whichBikeIsRented[walletAddr] = lessorsAddr;
         renters[walletAddr].active = true;
         renters[walletAddr].start = block.timestamp;
         renters[walletAddr].canRent = false;
+        lessors[lessorsAddr].canGiveForRent = false;
     }
 
     // check-in a bike
-    function checkIn(address payable walletAddr) public  {
+    function checkOut(address payable walletAddr) public  {
+        require((msg.sender) == walletAddr, "invalid user");
         require(renters[walletAddr].active == true, "not checked out any bike");
         // Renter memory tmp = renters[walletAddr];
         renters[walletAddr].active = false;
         // renters[walletAddr].canRent = true;  //haven't confirmed no-dues status
         renters[walletAddr].end = block.timestamp;
         setDueAmount(walletAddr);
+        lessors[whichBikeIsRented[walletAddr]].canGiveForRent = true;
         // renters[walletAddr].due = renters[walletAddr].end - renters[walletAddr].start;
     }
 
@@ -91,7 +100,9 @@ contract RentBike{
 
     // set Due amount
     function setDueAmount(address payable walletAddr) internal{
-        renters[walletAddr].due = (5000000000000000*(totalDuration(walletAddr)/5));
+        uint dueAmount = (5000000000000000*(totalDuration(walletAddr)/5));
+        renters[walletAddr].due = dueAmount;
+        lessors[whichBikeIsRented[walletAddr]].amountToBeCollected += dueAmount;
     }
 
     function canRentBike(address payable walletAddr) external view returns(bool){
@@ -100,6 +111,7 @@ contract RentBike{
 
     function payDues(address payable walletAddr) public {
         uint _amount = renters[walletAddr].due;
+        require((msg.sender) == walletAddr, "invalid user");
         require(renters[walletAddr].balance >= _amount, "your balance is low");
         renters[walletAddr].balance -= _amount;
         renters[walletAddr].canRent = true;
@@ -108,13 +120,14 @@ contract RentBike{
         renters[walletAddr].end = 0;
     }
 
-    function collectAmountLessor(address payable walletAddr) public{
+    function collectAmountLessor(address payable walletAddr) public payable{
+        require((msg.sender) == walletAddr, "invalid user");
         (lessors[walletAddr].walletAddress).transfer(lessors[walletAddr].amountToBeCollected);
         lessors[walletAddr].canGiveForRent = true;
         lessors[walletAddr].amountToBeCollected = 0;
     }
 
-    function checkOutPersonal(address payable walletAddr) public {
+    function checkInPersonal(address payable walletAddr) public {
         require(personalBikes.length > 0, "there are no personal bikes available");
         require(renters[walletAddr].balance > 0 , "insufficient balance");
         require(renters[walletAddr].due == 0, "dues are pending");
@@ -126,22 +139,27 @@ contract RentBike{
         renters[walletAddr].active = true;
         renters[walletAddr].start = block.timestamp;
         renters[walletAddr].canRent = false;
-    } 
-
-    function personalPay(address payable walletAddr, uint _amount ) public payable{
-        (bool val, ) = walletAddr.call{value : _amount}("");
-        require(val == true, "taransaction failed");
+        lessors[personalRents[walletAddr].walletAddress].canGiveForRent = false;
     }
 
-    function checkInPersonal(address payable walletAddr) public{
-        require(renters[walletAddr].active == true, "not checked out any bike");
+    // function personalPay(address payable walletAddr, uint _amount ) public payable{
+        
+    //     (bool val, ) = walletAddr.call{value : _amount}("");
+    //     require(val == true, "taransaction failed");
+    // }
+
+    function checkOutPersonal(address payable walletAddr) public{
+        require(renters[walletAddr].active == true, "not checked-in any bike");
         renters[walletAddr].active = false;
         renters[walletAddr].end = block.timestamp;
         renters[walletAddr].due = 5000000000000000*(renters[walletAddr].end - renters[walletAddr].start);
-        personalBikes.push(personalRents[walletAddr]);
-        lessors[personalRents[walletAddr].walletAddress].amountToBeCollected = renters[walletAddr].due;
         require(renters[walletAddr].due <= renters[walletAddr].balance, "insufficient balance ! you can't check-in");
-        personalPay(personalRents[walletAddr].walletAddress, renters[walletAddr].due);
+        personalBikes.push(personalRents[walletAddr]);
+        lessors[personalRents[walletAddr].walletAddress].canGiveForRent = true;
+        lessors[personalRents[walletAddr].walletAddress].amountToBeCollected += renters[walletAddr].due;
+        personalBikes.push(lessors[personalRents[walletAddr].walletAddress]);
+        // personalPay(personalRents[walletAddr].walletAddress, renters[walletAddr].due);
         delete personalRents[walletAddr];
     }
 }
+
